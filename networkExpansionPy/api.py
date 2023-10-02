@@ -1,7 +1,7 @@
 # Skeleton for a basic API using fastAPI
-
 from fastapi import FastAPI, Query
 from lib import GlobalMetabolicNetwork
+from networkExpansionPy import thermo
 
 app = FastAPI()
 
@@ -12,7 +12,7 @@ def read_root():
 
 
 @app.get("/expand")
-def expand_network(seedSet: list[str] = Query(None)):
+def expand_network(seedSet: list[str] = Query(None), thermodynamics: bool = False):
     """
     Expand the network given a seed set of compounds.
 
@@ -25,9 +25,14 @@ def expand_network(seedSet: list[str] = Query(None)):
     network = GlobalMetabolicNetwork()
     network.convertToIrreversible()
     network.pruneInconsistentReactions()
-    # network.pruneThermodynamicallyInfeasibleReactions()
+    network.pruneUnbalancedReactions()
+    network.addGenericCoenzymes()
+    if thermodynamics:
+        network.setMetaboliteBounds()
+        network.pruneThermodynamicallyInfeasibleReactions()
     compounds, rxns = network.expand(seedSet)
     return {"seeds": seedSet, "rxns": rxns, "compounds": compounds}
+
 
 
 if __name__ == "__main__":
