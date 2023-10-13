@@ -52,7 +52,7 @@ def netExp_cr(R,P,x,b):
     y = csr_matrix(np.zeros(n_reactions))
     l = 0
     l0 = 0;
-        
+
     while (k > k0) | (l > l0):
         k0 = np.sum(x);
         l0 = np.sum(y)
@@ -67,17 +67,17 @@ def netExp_cr(R,P,x,b):
 
 
 def netExp_trace(R,P,x,b):
-    
+
     X = []
     Y = []
-    
+
     X.append(x)
     k = np.sum(x);
     k0 = 0;
     n_reactions = np.size(R,1)
     y = csr_matrix(np.zeros(n_reactions))
     Y.append(y)
-    
+
     while k > k0:
         k0 = np.sum(x);
         y = (np.dot(R.transpose(),x) == b);
@@ -87,7 +87,7 @@ def netExp_trace(R,P,x,b):
         x = x_n.astype('int');
         k = np.sum(x);
         X.append(x)
-        Y.append(y) 
+        Y.append(y)
     return X,Y
 
 
@@ -96,12 +96,12 @@ def netContract(R,P,b,x_ac,y,yext):
     # code for running network contraction algorithm
     Xac = []
     Yac = []
-    
+
     #x_ac = x.copy()
     Xac.append(x_ac)
     k0 = np.sum(x_ac);
     n_reactions = np.size(R,1)
-    #yactive = csr_matrix(np.multiply((y.toarray()),1-yext.toarray()))   
+    #yactive = csr_matrix(np.multiply((y.toarray()),1-yext.toarray()))
     yactive = yext.__lt__(1).multiply(y)
     k0 = yactive.sum()
     Yac.append(yactive)
@@ -113,22 +113,22 @@ def netContract(R,P,b,x_ac,y,yext):
         x_ac = np.dot(P,yactive).astype('bool').astype('int')
         # find all extinct metabolites
         #x_ex = csr_matrix(np.multiply((x_ex.toarray()),1-x_ac.toarray()))
-        
+
         # metabolite has to be not active and extinct
         x_ex = x_ac.__lt__(1).multiply(x_ex)
-        
+
         #compute extinct reactions
         yext = np.dot(R.transpose(),x_ex).astype('bool').astype('int')
         # compute active reactions
-        
-        #yactive = csr_matrix(np.multiply((yactive.toarray()),1-yext.toarray()))   
+
+        #yactive = csr_matrix(np.multiply((yactive.toarray()),1-yext.toarray()))
         yactive = yext.__lt__(1).multiply(yactive)
         #k = np.sum(x_ac);
         k = yactive.sum()
         Xac.append(x_ac)
         Yac.append(yactive)
-        
-        
+
+
     return Xac,Yac
 
 
@@ -139,7 +139,7 @@ def parse_reaction_trace(reaction_trace,network):
         rxns = list(network.iloc[:,idx])
         rxns = pd.DataFrame(rxns,columns = ['rn','direction'])
         rxns['iter'] = i
-        rxns_list.append(rxns)    
+        rxns_list.append(rxns)
     rxns_list = pd.concat(rxns_list,axis=0)
     return rxns_list
 
@@ -184,10 +184,10 @@ def load_json_network(rdict):
 def _load_tuple_network(tlist):
     """
     Load a simple network, defined by 2-tuples of reactant lists and product lists
-    
+
     Note: Intended for DEV only
     Note: Stoichiometry information in output is only accurate for directionality
-    
+
         tlist_example = [
              (["A","B"],["C"]),
              (["C","D"],["E","F"]),
@@ -205,9 +205,9 @@ def _load_tuple_network(tlist):
     return pd.DataFrame(rows)
 
 class GlobalMetabolicNetwork:
-    
+
     def __init__(self,metabolism="KEGG_OG"):
-        # load the data        
+        # load the data
         if metabolism == "KEGG_OG":
             network = pd.read_csv(asset_path + '/KEGG/network_full.csv')
             cpds = pd.read_csv(asset_path +'/compounds/cpds.txt',sep='\t')
@@ -215,8 +215,9 @@ class GlobalMetabolicNetwork:
             self.network = network
             self.thermo = thermo
             self.compounds = cpds ## Includes many compounds without reactions
-            
-        
+
+
+
         elif metabolism == "ecg":
             with open(os.path.join(asset_path,"ecg","master_from_kegg_2021-01-05.json")) as f:
                 ecg = json.load(f)
@@ -248,10 +249,10 @@ class GlobalMetabolicNetwork:
         self.cid_to_idx = None
         self.idx_to_cid = None
         self.S = None
-        
+
     def copy(self):
         return deepcopy(self)
-        
+
     def set_ph(self,pH):
         if ~(type(pH) == str):
             pH = str(pH)
@@ -260,32 +261,32 @@ class GlobalMetabolicNetwork:
                 thermo = pd.read_csv(asset_path + '/reaction_free_energy/kegg_reactions_CC_ph' + pH + '.csv',sep=',')
                 self.thermo = thermo
             except Exception as error:
-                print('Failed to open pH files (please use 5.0-9.0 in 0.5 increments)')    
+                print('Failed to open pH files (please use 5.0-9.0 in 0.5 increments)')
         elif self.metabolism == "ecg":
             try:
                 self.thermo = self.load_ecg_thermo(self.metabolism,pH)
             except:
                 raise ValueError("Try another pH, that one appears not to be in the ecg json")
         else:
-            raise(NotImplementedError("pH not yet implemented for metabolism = %s"%self.metabolism)) 
+            raise(NotImplementedError("pH not yet implemented for metabolism = %s"%self.metabolism))
 
 
     def load_ecg_thermo(self,ph=9):
         thermo_list = []
         for rid,v in self.metabolism["reactions"].items():
-            
+
             phkey = str(ph)+"pH_100mM"
-            
+
             if v["metadata"]["dg"][phkey]["standard_dg_prime_value"] == None:
                 dg = np.nan
             else:
                 dg = v["metadata"]["dg"][phkey]["standard_dg_prime_value"]
-                
+
             if v["metadata"]["dg"][phkey]["standard_dg_prime_error"] == None:
                 dgerror = np.nan
             else:
                 dgerror = v["metadata"]["dg"][phkey]["standard_dg_prime_error"]
-                
+
             if v["metadata"]["dg"][phkey]["is_uncertain"] == None:
                 note = "uncertainty is too high"
             else:
@@ -297,11 +298,11 @@ class GlobalMetabolicNetwork:
                 v["metadata"]["dg"][phkey]["p_h"],
                 v["metadata"]["dg"][phkey]["ionic_strength"]/1000,
                 v["metadata"]["dg"][phkey]["temperature"],
-                note)) 
+                note))
 
-        return pd.DataFrame(thermo_list, columns = ("!MiriamID::urn:miriam:kegg.reaction","!dG0_prime (kJ/mol)","!sigma[dG0] (kJ/mol)","!pH","!I (mM)","!T (Kelvin)","!Note"))         
+        return pd.DataFrame(thermo_list, columns = ("!MiriamID::urn:miriam:kegg.reaction","!dG0_prime (kJ/mol)","!sigma[dG0] (kJ/mol)","!pH","!I (mM)","!T (Kelvin)","!Note"))
 
-    
+
     def pruneInconsistentReactions(self):
         # remove reactions with qualitatively different sets of elements in reactions and products
         if self.metabolism=="KEGG_OG":
@@ -310,7 +311,7 @@ class GlobalMetabolicNetwork:
         elif self.metabolism=="KEGG" or self.metabolism=="ecg":
             self.network = self.network[self.network.rn.isin(self.consistent_rxns.rn.tolist())]
         else:
-            raise(NotImplementedError("Function not yet implemented for metabolism = %s"%self.metabolism)) 
+            raise(NotImplementedError("Function not yet implemented for metabolism = %s"%self.metabolism))
 
     def pruneUnbalancedReactions(self):
         # only keep reactions that are elementally balanced
@@ -318,12 +319,12 @@ class GlobalMetabolicNetwork:
             balanced = pd.read_csv(asset_path + '/reaction_sets/reactions_balanced.csv')
             self.network = self.network[self.network.rn.isin(balanced.rn.tolist())]
         else:
-            raise(NotImplementedError("Function not yet implemented for metabolism = %s"%self.metabolism)) 
-        
+            raise(NotImplementedError("Function not yet implemented for metabolism = %s"%self.metabolism))
+
     def subnetwork(self,rxns):
         # only keep reactions that are in list
         self.network = self.network[self.network.rn.isin(rxns)]
-        
+
     def addGenericCoenzymes(self):
         replace_metabolites = {'C00003': 'Generic_oxidant', 'C00004': 'Generic_reductant', 'C00006': 'Generic_oxidant',  'C00005': 'Generic_reductant','C00016': 'Generic_oxidant','C01352':'Generic_reductant'}
         coenzyme_pairs = {}
@@ -350,7 +351,7 @@ class GlobalMetabolicNetwork:
         self.network = pd.concat([self.network,new_rxns],axis=0)
         self.thermo = pd.concat([self.thermo,new_thermo],axis=0)
 
-    
+
     def convertToIrreversible(self):
         nf = self.network.copy()
         nb = self.network.copy()
@@ -360,12 +361,12 @@ class GlobalMetabolicNetwork:
         net = pd.concat([nf,nb],axis=0)
         net = net.set_index(['cid','rn','direction']).reset_index()
         self.network = net
-    
-    def setMetaboliteBounds(self,ub = 1e-1,lb = 1e-6): 
-        
+
+    def setMetaboliteBounds(self,ub = 1e-1,lb = 1e-6):
+
         self.network['ub'] = ub
         self.network['lb'] = lb
-      
+
     def pruneThermodynamicallyInfeasibleReactions(self,keepnan = False):
         fixed_mets = ['C00001','C00080']
 
@@ -405,7 +406,7 @@ class GlobalMetabolicNetwork:
         res = res[~(res['effDeltaG'] > 0)].set_index(['rn','direction'])
         res = res.drop('effDeltaG',axis=1)
         self.network = res.join(self.network.set_index(['rn','direction'])).reset_index()
-    
+
     def pruneReactionsFromMetabolite(self,cpds):
         # find all reactions that use metabolites in cpds list
         reactions_to_drop = self.network[self.network.cid.isin(cpds)].rn.unique().tolist()
@@ -420,7 +421,7 @@ class GlobalMetabolicNetwork:
             x0 = np.zeros([len(self.cid_to_idx)],dtype=int)
             for x in set(seedSet)&set(self.cid_to_idx.keys()):
             #for x in set(map(tuple, seedSet)) & set(map(tuple, self.cid_to_idx.keys())):
-                x0[self.cid_to_idx[x]] = 1     
+                x0[self.cid_to_idx[x]] = 1
             return x0
 
     def initialize_reaction_vector(self,reactionSet):
@@ -429,7 +430,7 @@ class GlobalMetabolicNetwork:
         else:
             x0 = np.zeros([len(self.rid_to_idx)],dtype=int)
             for x in set(reactionSet)&set(self.rid_to_idx.keys()):
-                x0[self.rid_to_idx[x]] = 1     
+                x0[self.rid_to_idx[x]] = 1
             return x0
 
 
@@ -440,7 +441,7 @@ class GlobalMetabolicNetwork:
         for v, k in enumerate(rids):
             rid_to_idx[k] = v
             idx_to_rid[v] = k
-        
+
         return rid_to_idx, idx_to_rid
 
     def create_compound_dicts(self):
@@ -450,13 +451,13 @@ class GlobalMetabolicNetwork:
         for v, k in enumerate(cids):
             cid_to_idx[k] = v
             idx_to_cid[v] = k
-        
+
         return cid_to_idx, idx_to_cid
 
     def create_S_from_irreversible_network(self):
-        
+
         S = np.zeros([len(self.cid_to_idx),len(self.rid_to_idx)])
-            
+
         for c,r,d,s in zip(self.network["cid"],self.network["rn"],self.network["direction"],self.network["s"]):
             S[self.cid_to_idx[c],self.rid_to_idx[(r,d)]] = s
 
@@ -464,12 +465,12 @@ class GlobalMetabolicNetwork:
 
 
     def create_RP_from_irreversible_network(self):
-        
+
         # only use entries in teh network dataframe with s < 0:
         reactant_network = self.network[self.network.s<0]
 
         R = np.zeros([len(self.cid_to_idx),len(self.rid_to_idx)])
-        
+
         for c,r,d,s in zip(reactant_network["cid"],reactant_network["rn"],reactant_network["direction"],reactant_network["s"]):
             R[self.cid_to_idx[c],self.rid_to_idx[(r,d)]] = 1
 
@@ -477,7 +478,7 @@ class GlobalMetabolicNetwork:
         product_network = self.network[self.network.s>0]
 
         P = np.zeros([len(self.cid_to_idx),len(self.rid_to_idx)])
-        
+
         for c,r,d,s in zip(product_network["cid"],product_network["rn"],product_network["direction"],product_network["s"]):
             P[self.cid_to_idx[c],self.rid_to_idx[(r,d)]] = 1
 
@@ -493,10 +494,10 @@ class GlobalMetabolicNetwork:
 
         id_iter = dict()
         for idx,i in idx_iter.items():
-            id_iter[idx_to_id[idx]] = i  
+            id_iter[idx_to_id[idx]] = i
 
         return id_iter
-        
+
     def expand(self,seedSet,algorithm='naive',reaction_mask = None):
         # constructre network from skinny table and create matricies for NE algorithm
         # if (self.rid_to_idx is None) or (self.idx_to_rid is None):
@@ -506,7 +507,7 @@ class GlobalMetabolicNetwork:
         # if self.S is None:
         #self.S = self.create_S_from_irreversible_network()
         x0 = self.initialize_metabolite_vector(seedSet)
-        
+
         #R = (self.S < 0)*1
         #P = (self.S > 0)*1
         R,P = self.create_RP_from_irreversible_network()
@@ -537,9 +538,9 @@ class GlobalMetabolicNetwork:
             x,y = netExp_step(R,P,x0,b)
         else:
             raise ValueError('algorithm needs to be naive (compound stopping criteria) or cr (reaction/compound stopping criteria)')
-        
+
         if algorithm.lower() == 'trace':
-    
+
             compound_iteration_dict = self.create_iteration_dict(X,self.idx_to_cid)
             reaction_iteration_dict = self.create_iteration_dict(Y,self.idx_to_rid)
             return compound_iteration_dict, reaction_iteration_dict
@@ -551,13 +552,13 @@ class GlobalMetabolicNetwork:
                 compounds = [self.idx_to_cid[i] for i in cidx]
             else:
                 compounds = []
-                
+
             if y.toarray().sum() > 0:
                 ridx = np.nonzero(y.toarray().T[0])[0]
                 reactions = [self.idx_to_rid[i] for i in ridx]
             else:
                 reactions = [];
-                
+
             return compounds,reactions
 
 
@@ -569,7 +570,7 @@ class GlobalMetabolicNetwork:
         self.cid_to_idx, self.idx_to_cid = self.create_compound_dicts()
         # if self.S is None:
         #self.S = self.create_S_from_irreversible_network()
-        
+
         # create vectors for reactionScope, compoundScope
         xactive = self.initialize_metabolite_vector(compoundScope)
         yactive = self.initialize_reaction_vector(reactionScope)
@@ -601,13 +602,13 @@ class GlobalMetabolicNetwork:
             compounds = [self.idx_to_cid[i] for i in cidx]
         else:
             compounds = []
-            
+
         if y.toarray().sum() > 0:
             ridx = np.nonzero(y.toarray().T[0])[0]
             reactions = [self.idx_to_rid[i] for i in ridx]
         else:
             reactions = [];
-            
+
         return compounds,reactions
 
     def run_expansions(self,seedSets,algorithm='naive'):
@@ -618,7 +619,7 @@ class GlobalMetabolicNetwork:
         self.cid_to_idx, self.idx_to_cid = self.create_compound_dicts()
         # if self.S is None:
         #self.S = self.create_S_from_irreversible_network()
-        
+
         #R = (self.S < 0)*1
         #P = (self.S > 0)*1
         R,P = self.create_RP_from_irreversible_network()
@@ -637,7 +638,7 @@ class GlobalMetabolicNetwork:
             x0 = csr_matrix(x0)
             x0 = x0.transpose()
             x,y = netExp(R,P,x0,b)
-            
+
             if algorithm.lower() == 'naive':
                 x,y = netExp(R,P,x0,b)
                 if x.toarray().sum() > 0:
@@ -645,13 +646,13 @@ class GlobalMetabolicNetwork:
                     compounds = [self.idx_to_cid[i] for i in cidx]
                 else:
                     compounds = []
-                
+
                 if y.toarray().sum() > 0:
                     ridx = np.nonzero(y.toarray().T[0])[0]
                     reactions = [self.idx_to_rid[i] for i in ridx]
                 else:
                     reactions = [];
-                
+
             elif algorithm.lower() == 'trace':
                 X,Y = netExp_trace(R,P,x0,b)
                 compounds = self.create_iteration_dict(X,self.idx_to_cid)
@@ -672,11 +673,11 @@ class GlobalMetabolicNetwork:
         self.cid_to_idx, self.idx_to_cid = self.create_compound_dicts()
         # if self.S is None:
         #self.S = self.create_S_from_irreversible_network()
-        
+
         # create vectors for reactionScope, compoundScope
         xactive = self.initialize_metabolite_vector(compoundScope)
         yactive = self.initialize_reaction_vector(reactionScope)
-        
+
         #R = (self.S < 0)*1
         #P = (self.S > 0)*1
         R,P = self.create_RP_from_irreversible_network()
@@ -692,7 +693,7 @@ class GlobalMetabolicNetwork:
         #x0 = x0.transpose()
         xactive = csr_matrix(xactive).transpose()
         yactive = csr_matrix(yactive).transpose()
-     
+
 
         compoundScopes = []
         reactionScopes = []
@@ -703,13 +704,13 @@ class GlobalMetabolicNetwork:
             # run contraction algorithm
             X,Y = netContract(R,P,b,xactive,yactive,yextinct)
             x = X[-1]
-            y = Y[-1]            
+            y = Y[-1]
             if x.toarray().sum() > 0:
                 cidx = np.nonzero(x.toarray().T[0])[0]
                 compounds = [self.idx_to_cid[i] for i in cidx]
             else:
                 compounds = []
-                
+
             if y.toarray().sum() > 0:
                 ridx = np.nonzero(y.toarray().T[0])[0]
                 reactions = [self.idx_to_rid[i] for i in ridx]
@@ -717,7 +718,7 @@ class GlobalMetabolicNetwork:
                 reactions = [];
             compoundScopes.append(compounds)
             reactionScopes.append(reactions)
-        
+
         return compoundScopes,reactionScopes
 
 
@@ -752,7 +753,7 @@ class GlobalMetabolicNetwork:
                 compounds = [self.idx_to_cid[i] for i in cidx]
             else:
                 compounds = []
-                
+
             if y.toarray().sum() > 0:
                 ridx = np.nonzero(y.toarray().T[0])[0]
                 reactions = [self.idx_to_rid[i] for i in ridx]
@@ -760,18 +761,18 @@ class GlobalMetabolicNetwork:
                 reactions = [];
             compoundScopes.append(compounds)
             reactionScopes.append(reactions)
-        
+
         return compoundScopes,reactionScopes
 
 
     def ne_output_to_graph(self,cpds,rxns):
         # build a network constructing metabolites from prior iteration to connecting subsequent iteration
         # input: cpds (rxns) is a dict with compound id (reaction id) as the key, and iteration as the value
-        # output: dataframe with target and source node and iteration for  
+        # output: dataframe with target and source node and iteration for
 
         graph = {'target': [], 'source': [], 'iteration':[]}
         maxIter = np.array(list(cpds.values())).max()
-        
+
         cpd_iter_df = pd.DataFrame({'cid': [x[0] for x in cpds.items()],'iter': [x[1] for x in cpds.items()]})
 
         for i in range(maxIter,0,-1):
@@ -910,6 +911,3 @@ def expansion_helper_reaction_masks(args):
         reactions = []
 
     return compounds, reactions
-
-
-    

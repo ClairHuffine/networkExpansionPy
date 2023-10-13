@@ -2,6 +2,9 @@
 from fastapi import FastAPI, Query
 from lib import GlobalMetabolicNetwork
 from networkExpansionPy import thermo
+import numpy as np
+import json
+import more_itertools as iter
 
 app = FastAPI()
 
@@ -12,7 +15,7 @@ def read_root():
 
 
 @app.get("/expand")
-def expand_network(seedSet: list[str] = Query(None), thermodynamics: bool = False):
+def expand_network(seedSet: list[str] = Query(None), thermodynamics: bool = False, coenzymes: bool = False):
     """
     Expand the network given a seed set of compounds.
 
@@ -26,12 +29,28 @@ def expand_network(seedSet: list[str] = Query(None), thermodynamics: bool = Fals
     network.convertToIrreversible()
     network.pruneInconsistentReactions()
     network.pruneUnbalancedReactions()
-    network.addGenericCoenzymes()
+    network.setMetaboliteBounds()
+
+    if coenzymes:
+        network.addGenericCoenzymes()
+
     if thermodynamics:
-        network.setMetaboliteBounds()
         network.pruneThermodynamicallyInfeasibleReactions()
+
     compounds, rxns = network.expand(seedSet)
-    return {"seeds": seedSet, "rxns": rxns, "compounds": compounds}
+
+    tmp_str = []
+    for x in rxns:
+        for y in x:
+            tmp_str.append(str(y))
+
+    tmp_cln = [sub.replace('nan', '') for sub in tmp_str]
+    tmp_cln = iter.grouper(tmp_cln, 2, incomplete='ignore')
+    tmp_cln = [list(x) for x in tmp_cln]
+
+
+
+    return {"seeds": seedSet, "rxns": tmp_cln, "compounds": compounds, "test": coenzymes}
 
 
 
